@@ -23,13 +23,21 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+from launch.actions import ExecuteProcess
 
 
 def generate_launch_description():
     use_fake_hardware = LaunchConfiguration('use_fake_hardware')
     use_orientation = LaunchConfiguration('use_orientation')
     use_clutch = LaunchConfiguration('use_clutch')
-
+    # ft_sensor
+    netft_node_process = ExecuteProcess(
+        cmd=[
+            'ros2', 'run', 'netft_utils', 'netft_node',
+            '--address', '192.168.1.12'  # 실제 IP에 맞게 수정
+        ],
+        output='screen',
+    )
     # Get URDF via xacro
     robot_description_content = Command(
         [
@@ -72,6 +80,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_transform_publisher',
         output='log',
+        namespace="fd",
         arguments=[
             '0.0', '0.0', '0.0', '3.1416', '0.0', '0.0',
             'world',
@@ -89,6 +98,14 @@ def generate_launch_description():
             'stderr': 'screen',
         },
     )
+    #gui
+    gui_node = Node(
+        package='gui',            
+        executable='gui',         
+        name='gui_node',          
+        output='screen',
+    )
+    
 
     # Load controllers
     load_controllers = []
@@ -116,7 +133,11 @@ def generate_launch_description():
         controller_manager_node,
         node_robot_state_publisher,
         static_tf,
-    ] + load_controllers
+    ] + load_controllers + [
+        gui_node,
+        netft_node_process
+    ]
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'use_fake_hardware',
@@ -124,12 +145,12 @@ def generate_launch_description():
             description='Use fake r2c hardware interfaces'),
         DeclareLaunchArgument(
             'use_orientation',
-            default_value='false',
+            default_value='true',
             description='Read angular positions.velocities'
                         + '(WARNING! RPY parameterization)'
         ),
         DeclareLaunchArgument(
             'use_clutch',
-            default_value='false',
+            default_value='true',
             description='Enable clutch (read pos/vel/force and write force)'),
         ] + nodes)

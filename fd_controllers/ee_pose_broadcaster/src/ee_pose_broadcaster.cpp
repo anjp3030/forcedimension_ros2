@@ -162,6 +162,17 @@ EePoseBroadcaster::on_configure(const rclcpp_lifecycle::State & /*previous_state
     realtime_fd_button_publisher_ =
       std::make_shared<realtime_tools::RealtimePublisher<std_msgs::msg::Bool>>(
       fd_button_publisher_);
+    
+    ee_twist_publisher_ = get_node()->create_publisher<geometry_msgs::msg::Twist>(
+      "ee_twist",
+      rclcpp::SystemDefaultsQoS());
+    
+    realtime_ee_twist_publisher_ = 
+      std::make_shared<realtime_tools::RealtimePublisher<geometry_msgs::msg::Twist>>(
+        ee_twist_publisher_
+      );
+
+  
   } catch (const std::exception & e) {
     // get_node() may throw, logging raw here
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());
@@ -218,6 +229,9 @@ controller_interface::return_type EePoseBroadcaster::update(
 
   if (realtime_ee_pose_publisher_ && realtime_ee_pose_publisher_->trylock()) {
     pose_ = Eigen::Matrix4d::Identity();
+    double roll;
+    double pitch; 
+    double yaw;
 
     if (joints_.size() >= 3) {
       double p_x = get_value(name_if_value_mapping_, joints_[0], HW_IF_POSITION);
@@ -235,9 +249,9 @@ controller_interface::return_type EePoseBroadcaster::update(
     }
 
     if (joints_.size() >= 6) {
-      double roll = get_value(name_if_value_mapping_, joints_[3], HW_IF_POSITION);
-      double pitch = get_value(name_if_value_mapping_, joints_[4], HW_IF_POSITION);
-      double yaw = get_value(name_if_value_mapping_, joints_[5], HW_IF_POSITION);
+      roll = get_value(name_if_value_mapping_, joints_[3], HW_IF_POSITION);
+      pitch = get_value(name_if_value_mapping_, joints_[4], HW_IF_POSITION);
+      yaw = get_value(name_if_value_mapping_, joints_[5], HW_IF_POSITION);
 
       if (std::isnan(roll) || std::isnan(pitch) || std::isnan(yaw)) {
         RCLCPP_DEBUG(
@@ -257,6 +271,7 @@ controller_interface::return_type EePoseBroadcaster::update(
     Eigen::Quaternion<double> q(pose_.block<3, 3>(0, 0));
 
     auto & ee_pose_msg = realtime_ee_pose_publisher_->msg_;
+    auto & ee_twist_msg = realtime_ee_twist_publisher_ ->msg_;
 
     ee_pose_msg.header.stamp = get_node()->get_clock()->now();
     ee_pose_msg.header.frame_id = "fd_base";
@@ -269,7 +284,15 @@ controller_interface::return_type EePoseBroadcaster::update(
     ee_pose_msg.pose.orientation.y = q.y();
     ee_pose_msg.pose.orientation.z = q.z();
 
+    ee_twist_msg.linear.x = pose_(0, 3);
+    ee_twist_msg.linear.y = pose_(1, 3);
+    ee_twist_msg.linear.z = pose_(2, 3);
+    ee_twist_msg.angular.x = roll; 
+    ee_twist_msg.angular.y = pitch;
+    ee_twist_msg.angular.z = yaw;
     realtime_ee_pose_publisher_->unlockAndPublish();
+    realtime_ee_twist_publisher_->unlockAndPublish();
+  
   }
 
   if (!buttons_.empty()) {

@@ -30,6 +30,7 @@
 #include "realtime_tools/realtime_publisher.h"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "geometry_msgs/msg/twist.hpp"
 
 namespace ee_pose_broadcaster
 {
@@ -80,6 +81,11 @@ protected:
   std::shared_ptr<rclcpp::Publisher<std_msgs::msg::Bool>> fd_button_publisher_;
   std::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::msg::Bool>>
   realtime_fd_button_publisher_;
+
+  std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::Twist>> ee_twist_publisher_;
+  std::shared_ptr<realtime_tools::RealtimePublisher<geometry_msgs::msg::Twist>>
+  realtime_ee_twist_publisher_;
+
 };
 
 }  // namespace ee_pose_broadcaster
