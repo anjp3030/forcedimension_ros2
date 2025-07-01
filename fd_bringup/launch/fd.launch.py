@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import (
     Command,
     FindExecutable,
@@ -24,6 +24,7 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 from launch.actions import ExecuteProcess
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
@@ -98,14 +99,29 @@ def generate_launch_description():
             'stderr': 'screen',
         },
     )
-    #gui
+    #gui_node
     gui_node = Node(
         package='gui',            
         executable='gui',         
         name='gui_node',          
         output='screen',
     )
-    
+    #foot_switch
+    foot_switch_node = Node(
+        package='foot_switch',            
+        executable='fshw',         
+        name='foot_witch_node',          
+        output='screen',
+    )
+    include_cam_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('cam_node'),
+                'launch',
+                'cam_node_launch.py'
+            ])
+        )
+    )
 
     # Load controllers
     load_controllers = []
@@ -128,14 +144,17 @@ def generate_launch_description():
                 ],
             ),
         ]
+    
 
     nodes = [
         controller_manager_node,
         node_robot_state_publisher,
         static_tf,
     ] + load_controllers + [
-        gui_node,
-        netft_node_process
+        foot_switch_node,
+        netft_node_process,
+        include_cam_launch,
+        gui_node
     ]
 
     return LaunchDescription([
